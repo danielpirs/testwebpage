@@ -57,7 +57,8 @@ When('I click the danger button', async function () {
 // ==================== Text & Input ====================
 
 When('I type {string} in the text input', async function (text) {
-  await this.demoPage.textInput.fill(text);
+  // Use pressSequentially to fire key events that work in both Chrome and Lightpanda
+  await this.demoPage.textInput.pressSequentially(text);
 });
 
 Then('the input echo should show {string}', async function (expected) {
@@ -84,7 +85,10 @@ Then('the dropdown should be visible', async function () {
 });
 
 When('I select {string} from the dropdown', async function (option) {
-  await this.demoPage.dropdownSelect.selectOption({ label: option });
+  // Select by value (lowercase) for compatibility with both Chrome and Lightpanda.
+  // The dropdown <option> values in App.jsx are the lowercase version of their visible labels
+  // (e.g., label "Apple" → value "apple"), so .toLowerCase() is the correct mapping.
+  await this.demoPage.dropdownSelect.selectOption({ value: option.toLowerCase() });
 });
 
 Then('the dropdown status should show {string}', async function (expected) {

@@ -21,7 +21,7 @@ Before(async function () {
     this.browser = await chromium.connectOverCDP('http://localhost:9222');
   } else {
     // Default: Chromium (Chrome headless)
-    this.browser = await chromium.launch({ headless: true });
+    this.browser = await chromium.launch({ headless: true, args: ['--no-sandbox', '--disable-dev-shm-usage'] });
   }
 
   this.context = await this.browser.newContext();
