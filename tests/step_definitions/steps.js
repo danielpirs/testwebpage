@@ -57,8 +57,20 @@ When('I click the danger button', async function () {
 // ==================== Text & Input ====================
 
 When('I type {string} in the text input', async function (text) {
-  // Use pressSequentially to fire key events that work in both Chrome and Lightpanda
-  await this.demoPage.textInput.pressSequentially(text);
+  // Use page.evaluate() with native value setter to trigger React's onChange
+  // in both Chrome and Lightpanda. pressSequentially/fill don't reliably fire
+  // React synthetic events in Lightpanda.
+  // We reset React's internal _valueTracker to ensure it detects the value change.
+  await this.page.evaluate(({ selector, value }) => {
+    const input = document.querySelector(selector);
+    const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
+      window.HTMLInputElement.prototype, 'value'
+    ).set;
+    nativeInputValueSetter.call(input, value);
+    const tracker = input._valueTracker;
+    if (tracker) tracker.setValue('');
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+  }, { selector: '[data-testid="text-input"]', value: text });
 });
 
 Then('the input echo should show {string}', async function (expected) {
@@ -85,10 +97,42 @@ Then('the dropdown should be visible', async function () {
 });
 
 When('I select {string} from the dropdown', async function (option) {
-  // Select by value (lowercase) for compatibility with both Chrome and Lightpanda.
-  // The dropdown <option> values in App.jsx are the lowercase version of their visible labels
-  // (e.g., label "Apple" → value "apple"), so .toLowerCase() is the correct mapping.
-  await this.demoPage.dropdownSelect.selectOption({ value: option.toLowerCase() });
+  const value = option.toLowerCase();
+  const browserName = process.env.BROWSER || 'chrome';
+
+  if (browserName === 'lightpanda') {
+    // Lightpanda has a bug where <option> element values are garbled, so Playwright's
+    // selectOption can't find matching options. As a workaround, we call React's
+    // useState dispatch function directly through the fiber tree.
+    // NOTE: This depends on selectedFruit being the first useState hook in App.jsx.
+    // If the hook order changes, this will need to be updated.
+    await this.page.evaluate((val) => {
+      const select = document.querySelector('[data-testid="dropdown-select"]');
+      const fiberKey = Object.keys(select).find(k => k.startsWith('__reactFiber'));
+      let fiber = select[fiberKey];
+      while (fiber) {
+        if (fiber.memoizedState && fiber.stateNode === null) {
+          let hook = fiber.memoizedState;
+          if (hook && hook.queue && hook.queue.dispatch) {
+            hook.queue.dispatch(val);
+            return;
+          }
+        }
+        fiber = fiber.return;
+      }
+    }, value);
+    // Wait for React to re-render with the new state
+    await this.page.waitForFunction(
+      (text) => {
+        const el = document.querySelector('[data-testid="dropdown-status"]');
+        return el && el.textContent.includes(text);
+      },
+      value,
+      { timeout: 5000 }
+    );
+  } else {
+    await this.demoPage.dropdownSelect.selectOption({ value });
+  }
 });
 
 Then('the dropdown status should show {string}', async function (expected) {

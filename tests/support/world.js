@@ -18,7 +18,8 @@ Before(async function () {
 
   if (browserName === 'lightpanda') {
     // Lightpanda connects over CDP; it must be running separately on port 9222
-    this.browser = await chromium.connectOverCDP('http://localhost:9222');
+    // Use 127.0.0.1 explicitly to avoid IPv6 resolution issues with localhost
+    this.browser = await chromium.connectOverCDP('http://127.0.0.1:9222');
   } else {
     // Default: Chromium (Chrome headless)
     this.browser = await chromium.launch({ headless: true, args: ['--no-sandbox', '--disable-dev-shm-usage'] });
