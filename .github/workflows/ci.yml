@@ -13,6 +13,8 @@ jobs:
   build-webapp:
     name: Build React Webapp
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
 
     steps:
       - uses: actions/checkout@v4
@@ -46,6 +48,8 @@ jobs:
     name: Cucumber Tests (Chrome)
     runs-on: ubuntu-latest
     needs: build-webapp
+    permissions:
+      contents: read
 
     steps:
       - uses: actions/checkout@v4
@@ -108,6 +112,8 @@ jobs:
     name: Cucumber Tests (Lightpanda)
     runs-on: ubuntu-latest
     needs: build-webapp
+    permissions:
+      contents: read
 
     steps:
       - uses: actions/checkout@v4
